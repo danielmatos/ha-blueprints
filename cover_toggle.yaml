@@ -2,62 +2,84 @@ blueprint:
   name: Button Controlled Cover
   description: Controls a cover using two buttons, stopping it if it's already moving.
   domain: automation
+
   input:
     cover_entity_id:
-      description: The entity ID of the cover.
-      selector: entity
-      required: true
-    up_button_trigger_id:
-      description: The trigger ID of the up button.
-      selector: trigger
-      required: true
-    down_button_trigger_id:
-      description: The trigger ID of the down button.
-      selector: trigger
-      required: true
-  mode: single
-  trigger:
-    - platform: trigger
-      id: "{{ up_button_trigger_id }}"
-    - platform: trigger
-      id: "{{ down_button_trigger_id }}"
-  condition: []
-  action:
-    - choose:
+      name: Cover Entity
+      description: The entity ID of the cover
+      selector:
+        entity:
+          domain: cover
+
+    up_button_device_id:
+      name: Up Button Device
+      description: The device that triggers the "up" action (e.g., arrow_left_click)
+      selector:
+        device: {}
+
+    down_button_device_id:
+      name: Down Button Device
+      description: The device that triggers the "down" action (e.g., arrow_right_click)
+      selector:
+        device: {}
+
+trigger:
+  - platform: device
+    device_id: !input up_button_device_id
+    domain: mqtt
+    type: action
+    subtype: arrow_left_click
+    id: up_pressed
+
+  - platform: device
+    device_id: !input down_button_device_id
+    domain: mqtt
+    type: action
+    subtype: arrow_right_click
+    id: down_pressed
+
+condition: []
+
+action:
+  - choose:
+      # If cover is opening or closing -> stop
       - conditions:
-        - condition: or
-          conditions:
-            - condition: state
-              entity_id: "{{ cover_entity_id }}"
-              state: "opening"
-            - condition: state
-              entity_id: "{{ cover_entity_id }}"
-              state: "closing"
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: !input cover_entity_id
+                state: "opening"
+              - condition: state
+                entity_id: !input cover_entity_id
+                state: "closing"
         sequence:
           - service: cover.stop_cover
             target:
-              entity_id: "{{ cover_entity_id }}"
+              entity_id: !input cover_entity_id
+
+      # If cover is idle and up button is pressed -> open
       - conditions:
-        - condition: and
-          conditions:
-            - condition: state
-              entity_id: "{{ cover_entity_id }}"
-              state: "idle"
-            - condition: trigger
-              id: "{{ up_button_trigger_id }}"
+          - condition: state
+            entity_id: !input cover_entity_id
+            state: "idle"
+          - condition: trigger
+            id: up_pressed
         sequence:
           - service: cover.open_cover
             target:
-              entity_id: "{{ cover_entity_id }}"
+              entity_id: !input cover_entity_id
+
+      # If cover is idle and down button is pressed -> close
       - conditions:
-        - condition: and
-          conditions:
-            - condition: state
-              entity_id: "{{ cover_entity_id }}"
-              state: "idle"
-            - condition: trigger
-              id: "{{ down_button_trigger_id }}"
+          - condition: state
+            entity_id: !input cover_entity_id
+            state: "idle"
+          - condition: trigger
+            id: down_pressed
         sequence:
           - service: cover.close_cover
             target:
-              entity_id: "{{ cover_entity_id }}"
+              entity_id: !input cover_entity_id
+    default: []
+
+mode: single
