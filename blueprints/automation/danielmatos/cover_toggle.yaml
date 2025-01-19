@@ -1,0 +1,63 @@
+blueprint:
+  name: Button Controlled Cover
+  description: Controls a cover using two buttons, stopping it if it's already moving.
+  domain: automation
+  input:
+    cover_entity_id:
+      description: The entity ID of the cover.
+      selector: entity
+      required: true
+    up_button_trigger_id:
+      description: The trigger ID of the up button.
+      selector: trigger
+      required: true
+    down_button_trigger_id:
+      description: The trigger ID of the down button.
+      selector: trigger
+      required: true
+  mode: single
+  trigger:
+    - platform: trigger
+      id: "{{ up_button_trigger_id }}"
+    - platform: trigger
+      id: "{{ down_button_trigger_id }}"
+  condition: []
+  action:
+    - choose:
+      - conditions:
+        - condition: or
+          conditions:
+            - condition: state
+              entity_id: "{{ cover_entity_id }}"
+              state: "opening"
+            - condition: state
+              entity_id: "{{ cover_entity_id }}"
+              state: "closing"
+        sequence:
+          - service: cover.stop_cover
+            target:
+              entity_id: "{{ cover_entity_id }}"
+      - conditions:
+        - condition: and
+          conditions:
+            - condition: state
+              entity_id: "{{ cover_entity_id }}"
+              state: "idle"
+            - condition: trigger
+              id: "{{ up_button_trigger_id }}"
+        sequence:
+          - service: cover.open_cover
+            target:
+              entity_id: "{{ cover_entity_id }}"
+      - conditions:
+        - condition: and
+          conditions:
+            - condition: state
+              entity_id: "{{ cover_entity_id }}"
+              state: "idle"
+            - condition: trigger
+              id: "{{ down_button_trigger_id }}"
+        sequence:
+          - service: cover.close_cover
+            target:
+              entity_id: "{{ cover_entity_id }}"
