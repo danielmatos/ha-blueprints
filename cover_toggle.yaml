@@ -1,85 +1,105 @@
 blueprint:
-  name: Button Controlled Cover
-  description: Controls a cover using two buttons, stopping it if it's already moving.
+  name: Cover Control with Two Buttons
+  description: >
+    Control a cover with two buttons: one for opening and one for closing.
+    Buttons will stop the cover if it's moving.
   domain: automation
-
   input:
-    cover_entity_id:
-      name: Cover Entity
-      description: The entity ID of the cover
+    cover_entity:
+      name: Cover
+      description: The cover entity to control.
       selector:
         entity:
           domain: cover
-
-    up_button_device_id:
-      name: Up Button Device
-      description: The device that triggers the "up" action (e.g., arrow_left_click)
+    up_button:
+      name: Up Button
+      description: The button to open the cover.
       selector:
-        device: {}
-
-    down_button_device_id:
-      name: Down Button Device
-      description: The device that triggers the "down" action (e.g., arrow_right_click)
+        device:
+          integration: mqtt
+    up_button_trigger:
+      name: Up Button Trigger
+      description: Trigger for the up button.
+      default: action_arrow_left_click
       selector:
-        device: {}
+        text:
+          multiline: false
+    down_button:
+      name: Down Button
+      description: The button to close the cover.
+      selector:
+        device:
+          integration: mqtt
+    down_button_trigger:
+      name: Down Button Trigger
+      description: Trigger for the down button.
+      default: action_arrow_right_click
+      selector:
+        text:
+          multiline: false
 
 trigger:
   - platform: device
-    device_id: !input up_button_device_id
+    device_id: !input up_button
     domain: mqtt
     type: action
-    subtype: arrow_left_click
-    id: up_pressed
+    subtype: !input up_button_trigger
+    id: up_button_trigger
 
   - platform: device
-    device_id: !input down_button_device_id
+    device_id: !input down_button
     domain: mqtt
     type: action
-    subtype: arrow_right_click
-    id: down_pressed
+    subtype: !input down_button_trigger
+    id: down_button_trigger
 
 condition: []
 
 action:
   - choose:
-      # If cover is opening or closing -> stop
       - conditions:
           - condition: or
             conditions:
-              - condition: state
-                entity_id: !input cover_entity_id
-                state: "opening"
-              - condition: state
-                entity_id: !input cover_entity_id
-                state: "closing"
+              - condition: device
+                domain: cover
+                entity_id: !input cover_entity
+                type: is_closing
+              - condition: device
+                domain: cover
+                entity_id: !input cover_entity
+                type: is_opening
         sequence:
           - service: cover.stop_cover
             target:
-              entity_id: !input cover_entity_id
+              entity_id: !input cover_entity
 
-      # If cover is idle and up button is pressed -> open
       - conditions:
-          - condition: state
-            entity_id: !input cover_entity_id
-            state: "idle"
-          - condition: trigger
-            id: up_pressed
+          - condition: not
+            conditions:
+              - condition: device
+                domain: cover
+                entity_id: !input cover_entity
+                type: is_closing
+              - condition: device
+                domain: cover
+                entity_id: !input cover_entity
+                type: is_opening
         sequence:
-          - service: cover.open_cover
-            target:
-              entity_id: !input cover_entity_id
+          - choose:
+              - conditions:
+                  - condition: trigger
+                    id: up_button_trigger
+                sequence:
+                  - service: cover.open_cover
+                    target:
+                      entity_id: !input cover_entity
 
-      # If cover is idle and down button is pressed -> close
-      - conditions:
-          - condition: state
-            entity_id: !input cover_entity_id
-            state: "idle"
-          - condition: trigger
-            id: down_pressed
-        sequence:
-          - service: cover.close_cover
-            target:
-              entity_id: !input cover_entity_id
-    default: []
+              - conditions:
+                  - condition: trigger
+                    id: down_button_trigger
+                sequence:
+                  - service: cover.close_cover
+                    target:
+                      entity_id: !input cover_entity
 
 mode: single
