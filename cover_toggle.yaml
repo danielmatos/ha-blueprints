@@ -16,7 +16,6 @@ blueprint:
       description: The button to open the cover.
       selector:
         device:
-          integration: mqtt
     up_button_trigger:
       name: Up Button Trigger
       description: Trigger for the up button.
@@ -29,7 +28,6 @@ blueprint:
       description: The button to close the cover.
       selector:
         device:
-          integration: mqtt
     down_button_trigger:
       name: Down Button Trigger
       description: Trigger for the down button.
@@ -58,32 +56,21 @@ condition: []
 action:
   - choose:
       - conditions:
-          - condition: or
-            conditions:
-              - condition: device
-                domain: cover
-                entity_id: !input cover_entity
-                type: is_closing
-              - condition: device
-                domain: cover
-                entity_id: !input cover_entity
-                type: is_opening
+          - condition: state
+            entity_id: !input cover_entity
+            state: closing
+          - condition: state
+            entity_id: !input cover_entity
+            state: opening
         sequence:
           - service: cover.stop_cover
             target:
               entity_id: !input cover_entity
 
       - conditions:
-          - condition: not
-            conditions:
-              - condition: device
-                domain: cover
-                entity_id: !input cover_entity
-                type: is_closing
-              - condition: device
-                domain: cover
-                entity_id: !input cover_entity
-                type: is_opening
+          - condition: state
+            entity_id: !input cover_entity
+            state: idle
         sequence:
           - choose:
               - conditions:
@@ -103,3 +90,4 @@ action:
                       entity_id: !input cover_entity
 
 mode: single
+
